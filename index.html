@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PriorityCare · Hospital Patient Queue Simulation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="alert" id="al"></div>
+
+  <div class="top">
+    <div class="topin">
+      <div class="logo">
+        <svg width="40" height="40" viewBox="0 0 38 38">
+          <rect width="38" height="38" rx="4" fill="#fff"/>
+          <path d="M15 7h8v8h8v8h-8v8h-8v-8H7v-8h8z" fill="#d32f2f"/>
+        </svg>
+        <div>
+          <b>PRIORITYCARE</b>
+          <span>Hospital Patient Queue Simulation · Preemptive Priority Scheduling</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="st"><b id="c1">0</b><small>Waiting</small></div>
+        <div class="st"><b id="c2">0</b><small>Preempted</small></div>
+        <div class="st"><b id="c3">0</b><small>Treating</small></div>
+        <div class="st"><b id="c4">0</b><small>Completed</small></div>
+      </div>
+
+      <div class="clock">
+        <span id="clk">00</span>
+        <small>time units</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="leg">
+      <b>Priority convention: lower number = higher priority.</b>
+
+      <span class="tg" style="--c:var(--P1);--f:#fff">
+        <i>1</i> Critical <small>Immediate treatment</small>
+      </span>
+      <span class="tg" style="--c:var(--P2);--f:#fff">
+        <i>2</i> Urgent <small>Requires prompt treatment</small>
+      </span>
+      <span class="tg" style="--c:var(--P3);--f:#2b2b2b">
+        <i>3</i> Moderate <small>Can wait a short period</small>
+      </span>
+      <span class="tg" style="--c:var(--P4);--f:#fff">
+        <i>4</i> Minor <small>Lowest priority</small>
+      </span>
+    </div>
+
+    <div class="bar">
+      <span class="ttl">SIMULATION CONTROLS</span>
+      <button class="p" id="bStart">START</button>
+      <button id="bPause" disabled>PAUSE</button>
+      <button id="bStep">STEP</button>
+      <button class="d" id="bReset">RESET</button>
+
+      <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:8px">
+        Speed
+        <input type="range" id="spd" min="1" max="9" value="5">
+      </label>
+
+      <span style="flex:1"></span>
+      <button id="bReplay" title="Run the same patients again from time 0">Replay</button>
+      <button id="bSample">Load sample</button>
+      <button id="bCsv">Export CSV</button>
+    </div>
+
+    <div class="grid g1">
+      <div class="pn">
+        <h2>Add patient</h2>
+        <div class="bd">
+          <div class="two">
+            <label>Patient ID<input id="fid" maxlength="10"></label>
+            <label>Patient name<input id="fnm" placeholder="e.g. Juan" maxlength="30"></label>
+          </div>
+
+          <div class="two">
+            <label>Arrival time<input id="fat" type="number" min="0" value="0"></label>
+            <label>Treatment time (burst)<input id="fbt" type="number" min="1" max="240" value="5"></label>
+          </div>
+
+          <label>
+            Priority
+            <select id="fpr">
+              <option value="1">1 - Critical</option>
+              <option value="2">2 - Urgent</option>
+              <option value="3" selected>3 - Moderate</option>
+              <option value="4">4 - Minor</option>
+            </select>
+          </label>
+
+          <button class="p" id="bAdd" style="width:100%">ADD PATIENT</button>
+        </div>
+      </div>
+
+      <div class="pn current-patient">
+        <h2>CURRENT PATIENT</h2>
+
+        <div class="bd">
+          <div class="mon" id="bay">
+
+            <div class="doc">DOCTOR / MEDICAL TEAM (CPU)</div>
+
+            <div id="bed"></div>
+
+            <div class="ecg off" id="ecg">
+              <svg viewBox="0 0 800 60"
+                  preserveAspectRatio="none">
+                <path
+                  d="M0 30 L15 30 L25 22 L35 30
+                    L125 30 L135 30 L145 8
+                    L158 52 L170 30 L190 30
+                    L200 22 L210 30 L300 30
+                    L310 30 L320 8 L333 52
+                    L345 30 L365 30 L375 22
+                    L385 30 L475 30 L485 30
+                    L495 8 L508 52 L520 30
+                    L540 30 L550 22 L560 30
+                    L650 30 L660 30 L670 8
+                    L683 52 L695 30 L715 30
+                    L725 22 L735 30 L800 30"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"/>
+              </svg>
+            </div>
+
+            <div class="pl">
+              <span>TREATMENT PROGRESS</span>
+              <span id="pp">0%</span>
+            </div>
+
+            <div class="pbar">
+              <i id="pb"></i>
+            </div>
+
+            <div class="pnote" id="pnote"></div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid g2">
+      <div class="pn">
+        <h2>Patient / ready queue <span id="qn"></span></h2>
+        <div class="bd" style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Arrival</th>
+                <th>Priority</th>
+                <th>Remaining</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="qb"></tbody>
+          </table>
+          <small>
+            Order: treating, then waiting/preempted by priority,
+            then patients who have not arrived, then completed.
+          </small>
+        </div>
+      </div>
+
+      <div class="pn">
+        <h2>Event log</h2>
+        <div class="bd">
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pn" style="margin-bottom:12px">
+      <h2>Treatment timeline (Gantt chart)</h2>
+      <div class="bd">
+        <div class="gt" id="g"></div>
+        <div class="sum" id="sum"></div>
+      </div>
+    </div>
+
+    <div class="pn" style="margin-bottom:12px">
+      <h2>Results and scheduling metrics</h2>
+      <div class="bd" style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>AT</th>
+              <th>BT</th>
+              <th>Priority</th>
+              <th>CT</th>
+              <th>TAT</th>
+              <th>WT</th>
+            </tr>
+          </thead>
+          <tbody id="rb"></tbody>
+        </table>
+
+        <small>
+          AT = Arrival Time, BT = Burst Time (treatment),
+          CT = Completion Time, TAT = Turnaround Time (CT − AT),
+          WT = Waiting Time (TAT − BT). All in time units.
+        </small>
+      </div>
+    </div>
+
+    <footer>
+      Educational simulation of Preemptive Priority Scheduling.
+      Not a clinical decision tool.
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
